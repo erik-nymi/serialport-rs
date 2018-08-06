@@ -31,8 +31,8 @@ regex = "1.0"
 [target."cfg(windows)".dependencies.winapi]
 git = "https://github.com/retep998/winapi-rs.git"
 branch = "0.3"
-features = ["cguid", "commapi", "errhandlingapi", "fileapi", "guiddef", "handleapi", "minwinbase",
-            "minwindef", "ntdef", "setupapi", "winbase", "winerror", "winnt"]
+features = ["cguid", "commapi", "errhandlingapi", "fileapi", "guiddef", "handleapi", "ioapiset", "minwinbase",
+            "minwindef", "ntdef", "setupapi", "synchapi", "winbase", "winerror", "winnt"]
 
 [target.'cfg(target_os = "macos")'.dependencies]
 IOKit-sys = "0.1"

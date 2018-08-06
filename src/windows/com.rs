@@ -3,7 +3,7 @@ use regex::Regex;
 use std::ffi::{CStr, CString, OsStr};
 use std::os::windows::prelude::*;
 use std::time::Duration;
-use std::{io, mem, ptr};
+use std::{fmt, io, mem, ptr};
 
 use winapi::shared::guiddef::*;
 use winapi::shared::minwindef::*;
@@ -14,11 +14,13 @@ use winapi::um::commapi::*;
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::fileapi::*;
 use winapi::um::handleapi::*;
+use winapi::um::ioapiset::GetOverlappedResult;
+use winapi::um::minwinbase::OVERLAPPED;
 use winapi::um::processthreadsapi::GetCurrentProcess;
 use winapi::um::setupapi::*;
+use winapi::um::synchapi::*;
 use winapi::um::winbase::*;
-use winapi::um::winnt::{DUPLICATE_SAME_ACCESS, FILE_ATTRIBUTE_NORMAL, GENERIC_READ, GENERIC_WRITE,
-                        HANDLE, KEY_READ};
+use winapi::um::winnt::{DUPLICATE_SAME_ACCESS, GENERIC_READ, GENERIC_WRITE, HANDLE, KEY_READ};
 use winapi::um::winreg::*;
 
 use {DataBits, FlowControl, Parity, SerialPort, SerialPortInfo, SerialPortSettings, StopBits};
@@ -34,7 +36,21 @@ use {Error, ErrorKind};
 pub struct COMPort {
     handle: HANDLE,
     timeout: Duration,
+    overlaps: Overlaps,
     port_name: Option<String>,
+}
+
+#[derive(Clone)]
+struct Overlaps {
+    pub read_overlap: OVERLAPPED,
+    pub write_overlap: OVERLAPPED,
+    pub wait_overlap: OVERLAPPED,
+}
+
+impl fmt::Debug for Overlaps {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "overlaps")
+    }
 }
 
 unsafe impl Send for COMPort {}
@@ -71,7 +87,7 @@ impl COMPort {
                 0,
                 ptr::null_mut(),
                 OPEN_EXISTING,
-                FILE_ATTRIBUTE_NORMAL,
+                FILE_FLAG_OVERLAPPED,
                 0 as HANDLE,
             )
         };
@@ -105,9 +121,36 @@ impl COMPort {
     fn open_from_raw_handle(handle: RawHandle) -> Self {
         // It is not trivial to get the file path corresponding to a handle.
         // We'll punt and set it `None` here.
+
+        let read_overlap = OVERLAPPED {
+            Internal: 0,
+            InternalHigh: 0,
+            u: unsafe { mem::zeroed() },
+            hEvent: unsafe { CreateEventW(ptr::null_mut(), FALSE, FALSE, ptr::null()) },
+        };
+        let write_overlap = OVERLAPPED {
+            Internal: 0,
+            InternalHigh: 0,
+            u: unsafe { mem::zeroed() },
+            hEvent: unsafe { CreateEventW(ptr::null_mut(), FALSE, FALSE, ptr::null()) },
+        };
+        let wait_overlap = OVERLAPPED {
+            Internal: 0,
+            InternalHigh: 0,
+            u: unsafe { mem::zeroed() },
+            hEvent: unsafe { CreateEventW(ptr::null_mut(), FALSE, FALSE, ptr::null()) },
+        };
+
+        let overlaps = Overlaps {
+            read_overlap,
+            write_overlap,
+            wait_overlap,
+        };
+
         COMPort {
             handle: handle as HANDLE,
             timeout: Duration::from_millis(100),
+            overlaps,
             port_name: None,
         }
     }
@@ -153,19 +196,33 @@ impl FromRawHandle for COMPort {
 
 impl io::Read for COMPort {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let mut len: DWORD = 0;
-
         match unsafe {
             ReadFile(
                 self.handle,
                 buf.as_mut_ptr() as LPVOID,
                 buf.len() as DWORD,
-                &mut len,
                 ptr::null_mut(),
+                &mut self.overlaps.read_overlap,
             )
         } {
-            0 => Err(io::Error::last_os_error()),
             _ => {
+                let err = unsafe { GetLastError() };
+                match err {
+                    0 | 997 => {}
+                    _ => return Err(io::Error::last_os_error()),
+                }
+                let mut len: DWORD = 0;
+                let res = unsafe {
+                    GetOverlappedResult(
+                        self.handle,
+                        &mut self.overlaps.read_overlap,
+                        &mut len,
+                        TRUE,
+                    )
+                };
+                if res == FALSE {
+                    return Err(io::Error::last_os_error());
+                }
                 if len != 0 {
                     Ok(len as usize)
                 } else {
@@ -189,11 +246,28 @@ impl io::Write for COMPort {
                 buf.as_ptr() as LPVOID,
                 buf.len() as DWORD,
                 &mut len,
-                ptr::null_mut(),
+                &mut self.overlaps.write_overlap,
             )
         } {
-            0 => Err(io::Error::last_os_error()),
-            _ => Ok(len as usize),
+            _ => {
+                let err = unsafe { GetLastError() };
+                match err {
+                    0 | 997 => {}
+                    _ => return Err(io::Error::last_os_error()),
+                }
+                let res = unsafe {
+                    GetOverlappedResult(
+                        self.handle,
+                        &mut self.overlaps.write_overlap,
+                        &mut len,
+                        TRUE,
+                    )
+                };
+                if res == FALSE {
+                    return Err(io::Error::last_os_error());
+                }
+                Ok(len as usize)
+            }
         }
     }
 
@@ -464,6 +538,7 @@ impl SerialPort for COMPort {
                 Ok(Box::new(COMPort {
                     handle: cloned_handle,
                     port_name: self.port_name.clone(),
+                    overlaps: self.overlaps.clone(),
                     timeout: self.timeout,
                 }))
             } else {
