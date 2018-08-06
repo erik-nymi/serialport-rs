@@ -17,8 +17,9 @@ use winapi::um::handleapi::*;
 use winapi::um::processthreadsapi::GetCurrentProcess;
 use winapi::um::setupapi::*;
 use winapi::um::winbase::*;
-use winapi::um::winnt::{DUPLICATE_SAME_ACCESS, FILE_ATTRIBUTE_NORMAL, GENERIC_READ, GENERIC_WRITE,
-                        HANDLE, KEY_READ};
+use winapi::um::winnt::{
+    DUPLICATE_SAME_ACCESS, FILE_ATTRIBUTE_NORMAL, GENERIC_READ, GENERIC_WRITE, HANDLE, KEY_READ,
+};
 use winapi::um::winreg::*;
 
 use {DataBits, FlowControl, Parity, SerialPort, SerialPortInfo, SerialPortSettings, StopBits};
@@ -206,6 +207,22 @@ impl io::Write for COMPort {
 }
 
 impl SerialPort for COMPort {
+    // fn register_ondata_callback(&self, callback: fn() -> ()) {
+    //     const EV_RXFLAG: u32 = 2;
+    //     let handle = self.handle.clone();
+    //     thread::spawn(|| loop {
+    //         unsafe { WaitCommEvent(handle, &mut EV_RXFLAG, ptr::null_mut()) };
+    //         callback();
+    //     });
+    // }
+
+    fn wait_for_data(&self) {
+        const EV_RXCHAR: u32 = 1;
+        unsafe {
+            WaitCommEvent(self.handle, &mut EV_RXCHAR, ptr::null_mut());
+        }
+    }
+
     fn name(&self) -> Option<String> {
         self.port_name.clone()
     }

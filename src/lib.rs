@@ -266,6 +266,11 @@ impl Default for SerialPortSettings {
 pub trait SerialPort: Send + io::Read + io::Write {
     // Port settings getters
 
+    // fn register_ondata_callback(&self, callback: fn() -> ());
+
+    /// Returns a queue which can be waited on to receive
+    fn wait_for_data(&self);
+
     /// Returns the name of this port if it exists.
     ///
     /// This name may not be the canonical device name and instead be shorthand.
