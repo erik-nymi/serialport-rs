@@ -199,6 +199,7 @@ impl FromRawHandle for COMPort {
 
 impl io::Read for COMPort {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        println!("Buffer length before conversion: {}", buf.len());
         println!("This is the buffer length in here: {}", buf.len() as DWORD);
         match unsafe {
             ReadFile(
