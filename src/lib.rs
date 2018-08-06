@@ -269,7 +269,7 @@ pub trait SerialPort: Send + io::Read + io::Write {
     // fn register_ondata_callback(&self, callback: fn() -> ());
 
     /// Returns a queue which can be waited on to receive
-    fn wait_for_data(&self);
+    fn wait_for_data(&mut self);
 
     /// Returns the name of this port if it exists.
     ///
