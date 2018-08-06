@@ -81,7 +81,7 @@ impl COMPort {
             let mut com = COMPort::open_from_raw_handle(handle as RawHandle);
             com.port_name = port.as_ref().to_str().map(|s| s.to_string());
             com.set_all(settings)?;
-            let mask: u32 = 2;
+            let mask: u32 = 1;
             unsafe { SetCommMask(handle, mask) };
             Ok(com)
         } else {
@@ -219,9 +219,9 @@ impl SerialPort for COMPort {
     // }
 
     fn wait_for_data(&self) {
-        const EV_RXFLAG: u32 = 2;
+        const EV_RXCHAR: u32 = 1;
         unsafe {
-            WaitCommEvent(self.handle, &mut EV_RXFLAG, ptr::null_mut());
+            WaitCommEvent(self.handle, &mut EV_RXCHAR, ptr::null_mut());
         }
     }
 
