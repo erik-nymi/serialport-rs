@@ -252,7 +252,7 @@ impl io::Write for COMPort {
                 &mut self.overlaps.write_overlap,
             )
         } {
-            0 => Err(io::Error::last_os_error()),
+            //0 => Err(io::Error::last_os_error()),
             n => {
                 let err = unsafe { GetLastError() };
                 println!("Writing: n={}, err={}", n, err);
