@@ -222,7 +222,7 @@ impl io::Read for COMPort {
                     )
                 };
                 let err = unsafe { GetLastError() };
-                println!("Reading after getover: n={}, err={}", n, err);
+                println!("Reading after getover: n={}, err={}, len={}", n, err, len);
                 if res == FALSE {
                     return Err(io::Error::last_os_error());
                 }
@@ -255,6 +255,8 @@ impl io::Write for COMPort {
             //0 => Err(io::Error::last_os_error()),
             n => {
                 let err = unsafe { GetLastError() };
+                // if err != 997 {
+                // };
                 println!("Writing: n={}, err={}", n, err);
                 let res = unsafe {
                     GetOverlappedResult(
