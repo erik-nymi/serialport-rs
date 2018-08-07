@@ -96,9 +96,6 @@ impl COMPort {
             let mut com = COMPort::open_from_raw_handle(handle as RawHandle);
             com.port_name = port.as_ref().to_str().map(|s| s.to_string());
             com.set_all(settings)?;
-
-            let mask: u32 = 1;
-            unsafe { SetCommMask(handle, mask) };
             Ok(com)
         } else {
             Err(super::error::last_os_error())
@@ -208,8 +205,7 @@ impl io::Read for COMPort {
                 &mut self.overlaps.read_overlap,
             )
         } {
-            //0 => Err(io::Error::last_os_error()),
-            n => {
+            _ => {
                 let mut len: DWORD = 0;
                 let res = unsafe {
                     GetOverlappedResult(
@@ -248,7 +244,7 @@ impl io::Write for COMPort {
                 &mut self.overlaps.write_overlap,
             )
         } {
-            n => {
+            _ => {
                 let res = unsafe {
                     GetOverlappedResult(
                         self.handle,
@@ -274,22 +270,6 @@ impl io::Write for COMPort {
 }
 
 impl SerialPort for COMPort {
-    // fn register_ondata_callback(&self, callback: fn() -> ()) {
-    //     const EV_RXFLAG: u32 = 2;
-    //     let handle = self.handle.clone();
-    //     thread::spawn(|| loop {
-    //         unsafe { WaitCommEvent(handle, &mut EV_RXFLAG, ptr::null_mut()) };
-    //         callback();
-    //     });
-    // }
-
-    fn wait_for_data(&mut self) {
-        const EV_RXCHAR: u32 = 1;
-        unsafe {
-            WaitCommEvent(self.handle, &mut EV_RXCHAR, &mut self.overlaps.wait_overlap);
-        }
-    }
-
     fn name(&self) -> Option<String> {
         self.port_name.clone()
     }
