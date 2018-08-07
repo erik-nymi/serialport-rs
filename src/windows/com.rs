@@ -209,6 +209,11 @@ impl io::Read for COMPort {
             )
         } {
             _ => {
+                let err = unsafe { GetLastError() };
+                match err {
+                    0 | 997 => {}
+                    _ => return Err(io::Error::last_os_error()),
+                }
                 let mut len: DWORD = 0;
                 let res = unsafe {
                     GetOverlappedResult(
@@ -248,6 +253,11 @@ impl io::Write for COMPort {
             )
         } {
             _ => {
+                let err = unsafe { GetLastError() };
+                match err {
+                    0 | 997 => {}
+                    _ => return Err(io::Error::last_os_error()),
+                }
                 let res = unsafe {
                     GetOverlappedResult(
                         self.handle,
