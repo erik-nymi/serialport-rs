@@ -129,19 +129,19 @@ impl COMPort {
             Internal: 0,
             InternalHigh: 0,
             u: unsafe { mem::zeroed() },
-            hEvent: unsafe { CreateEventW(ptr::null_mut(), TRUE, FALSE, ptr::null()) },
+            hEvent: unsafe { CreateEventW(ptr::null_mut(), FALSE, FALSE, ptr::null()) },
         };
         let write_overlap = OVERLAPPED {
             Internal: 0,
             InternalHigh: 0,
             u: unsafe { mem::zeroed() },
-            hEvent: unsafe { CreateEventW(ptr::null_mut(), TRUE, FALSE, ptr::null()) },
+            hEvent: unsafe { CreateEventW(ptr::null_mut(), FALSE, FALSE, ptr::null()) },
         };
         let wait_overlap = OVERLAPPED {
             Internal: 0,
             InternalHigh: 0,
             u: unsafe { mem::zeroed() },
-            hEvent: unsafe { CreateEventW(ptr::null_mut(), TRUE, FALSE, ptr::null()) },
+            hEvent: unsafe { CreateEventW(ptr::null_mut(), FALSE, FALSE, ptr::null()) },
         };
 
         let overlaps = Overlaps {
@@ -209,7 +209,9 @@ impl io::Read for COMPort {
             )
         } {
             //0 => Err(io::Error::last_os_error()),
-            _ => {
+            n => {
+                let err = unsafe { GetLastError() };
+                println!("Reading: n={}, err={}", n, err);
                 let mut len: DWORD = 0;
                 let res = unsafe {
                     GetOverlappedResult(
@@ -249,8 +251,10 @@ impl io::Write for COMPort {
                 &mut self.overlaps.write_overlap,
             )
         } {
-            //0 => Err(io::Error::last_os_error()),
-            _ => {
+            0 => Err(io::Error::last_os_error()),
+            n => {
+                let err = unsafe { GetLastError() };
+                println!("Reading: n={}, err={}", n, err);
                 let res = unsafe {
                     GetOverlappedResult(
                         self.handle,
