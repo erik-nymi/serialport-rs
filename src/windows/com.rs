@@ -210,8 +210,6 @@ impl io::Read for COMPort {
         } {
             //0 => Err(io::Error::last_os_error()),
             n => {
-                let err = unsafe { GetLastError() };
-                println!("Reading: n={}, err={}", n, err);
                 let mut len: DWORD = 0;
                 let res = unsafe {
                     GetOverlappedResult(
@@ -221,8 +219,6 @@ impl io::Read for COMPort {
                         TRUE,
                     )
                 };
-                let err = unsafe { GetLastError() };
-                println!("Reading after getover: n={}, err={}, len={}", n, err, len);
                 if res == FALSE {
                     return Err(io::Error::last_os_error());
                 }
@@ -252,12 +248,7 @@ impl io::Write for COMPort {
                 &mut self.overlaps.write_overlap,
             )
         } {
-            //0 => Err(io::Error::last_os_error()),
             n => {
-                let err = unsafe { GetLastError() };
-                // if err != 997 {
-                // };
-                println!("Writing: n={}, err={}", n, err);
                 let res = unsafe {
                     GetOverlappedResult(
                         self.handle,
@@ -266,8 +257,6 @@ impl io::Write for COMPort {
                         TRUE,
                     )
                 };
-                let err = unsafe { GetLastError() };
-                println!("Writing after getover: n={}, err={}", n, err);
                 if res == FALSE {
                     return Err(io::Error::last_os_error());
                 }
