@@ -219,6 +219,7 @@ impl io::Read for COMPort {
                         TRUE,
                     )
                 };
+                println!("Reading stuff: {}", res);
                 if res == FALSE {
                     return Err(io::Error::last_os_error());
                 }
@@ -258,6 +259,7 @@ impl io::Write for COMPort {
                         TRUE,
                     )
                 };
+                println!("Writing stuff: {}", res);
                 if res == FALSE {
                     return Err(io::Error::last_os_error());
                 }
