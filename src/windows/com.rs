@@ -221,7 +221,8 @@ impl io::Read for COMPort {
                         TRUE,
                     )
                 };
-                println!("Reading stuff: {}", res);
+                let err = unsafe { GetLastError() };
+                println!("Reading after getover: n={}, err={}", n, err);
                 if res == FALSE {
                     return Err(io::Error::last_os_error());
                 }
@@ -254,7 +255,7 @@ impl io::Write for COMPort {
             0 => Err(io::Error::last_os_error()),
             n => {
                 let err = unsafe { GetLastError() };
-                println!("Reading: n={}, err={}", n, err);
+                println!("Writing: n={}, err={}", n, err);
                 let res = unsafe {
                     GetOverlappedResult(
                         self.handle,
@@ -263,7 +264,8 @@ impl io::Write for COMPort {
                         TRUE,
                     )
                 };
-                println!("Writing stuff: {}", res);
+                let err = unsafe { GetLastError() };
+                println!("Writing after getover: n={}, err={}", n, err);
                 if res == FALSE {
                     return Err(io::Error::last_os_error());
                 }
