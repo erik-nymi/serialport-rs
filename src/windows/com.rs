@@ -221,6 +221,10 @@ impl io::Read for COMPort {
                     )
                 };
                 if res == FALSE {
+                    error!(
+                        "SerialPort: Got error and transfered bytes: len: {}, buf: {:?}",
+                        len, buf
+                    );
                     return Err(io::Error::last_os_error());
                 }
                 if len != 0 {
