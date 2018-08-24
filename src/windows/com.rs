@@ -196,7 +196,7 @@ impl FromRawHandle for COMPort {
 
 impl io::Read for COMPort {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        match unsafe {
+        let read_file_result = unsafe {
             ReadFile(
                 self.handle,
                 buf.as_mut_ptr() as LPVOID,
@@ -204,38 +204,40 @@ impl io::Read for COMPort {
                 ptr::null_mut(),
                 &mut self.overlaps.read_overlap,
             )
-        } {
-            _ => {
-                let err = unsafe { GetLastError() };
-                match err {
-                    0 | 997 => {}
-                    _ => return Err(io::Error::last_os_error()),
-                }
-                let mut len: DWORD = 0;
-                let res = unsafe {
-                    GetOverlappedResult(
-                        self.handle,
-                        &mut self.overlaps.read_overlap,
-                        &mut len,
-                        TRUE,
-                    )
-                };
-                if res == FALSE {
+        };
+        if let 0 = read_file_result {
+            let err = io::Error::last_os_error();
+            match err.raw_os_error().unwrap() {
+                0 | 997 => {}
+                err_code => {
                     error!(
-                        "SerialPort: Got error and transfered bytes: len: {}, buf: {:?}",
-                        len, buf
+                        "SerialPort: Got error on readfile: {}, len: {}, buf: {:?}",
+                        err_code,
+                        buf.len(),
+                        buf
                     );
-                    return Err(io::Error::last_os_error());
-                }
-                if len != 0 {
-                    Ok(len as usize)
-                } else {
-                    Err(io::Error::new(
-                        io::ErrorKind::TimedOut,
-                        "Operation timed out",
-                    ))
+                    return Err(err);
                 }
             }
+        };
+        let mut len: DWORD = 0;
+        let res = unsafe {
+            GetOverlappedResult(self.handle, &mut self.overlaps.read_overlap, &mut len, TRUE)
+        };
+        if res == FALSE {
+            error!(
+                "SerialPort: Got error and transfered bytes: len: {}, buf: {:?}",
+                len, buf
+            );
+            return Err(io::Error::last_os_error());
+        }
+        if len != 0 {
+            Ok(len as usize)
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "Operation timed out",
+            ))
         }
     }
 }

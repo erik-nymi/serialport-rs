@@ -41,6 +41,9 @@ extern crate regex;
 #[cfg(windows)]
 extern crate winapi;
 
+#[macro_use]
+extern crate log;
+
 use std::convert::From;
 use std::error::Error as StdError;
 use std::ffi::OsStr;
