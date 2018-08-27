@@ -246,7 +246,7 @@ impl io::Write for COMPort {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let mut len: DWORD = 0;
 
-        match unsafe {
+        let write_file_result = unsafe {
             WriteFile(
                 self.handle,
                 buf.as_ptr() as LPVOID,
@@ -254,27 +254,26 @@ impl io::Write for COMPort {
                 &mut len,
                 &mut self.overlaps.write_overlap,
             )
-        } {
-            _ => {
-                let err = unsafe { GetLastError() };
-                match err {
-                    0 | 997 => {}
-                    _ => return Err(io::Error::last_os_error()),
-                }
-                let res = unsafe {
-                    GetOverlappedResult(
-                        self.handle,
-                        &mut self.overlaps.write_overlap,
-                        &mut len,
-                        TRUE,
-                    )
-                };
-                if res == FALSE {
-                    return Err(io::Error::last_os_error());
-                }
-                Ok(len as usize)
+        };
+        if let 0 = write_file_result {
+            let err = unsafe { GetLastError() };
+            match err {
+                0 | 997 => {}
+                _ => return Err(io::Error::last_os_error()),
             }
         }
+        let res = unsafe {
+            GetOverlappedResult(
+                self.handle,
+                &mut self.overlaps.write_overlap,
+                &mut len,
+                TRUE,
+            )
+        };
+        if res == FALSE {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(len as usize)
     }
 
     fn flush(&mut self) -> io::Result<()> {
@@ -315,7 +314,7 @@ impl SerialPort for COMPort {
             ReadTotalTimeoutMultiplier: 0,
             ReadTotalTimeoutConstant: milliseconds as DWORD,
             WriteTotalTimeoutMultiplier: 0,
-            WriteTotalTimeoutConstant: 0,
+            WriteTotalTimeoutConstant: milliseconds as DWORD,
         };
 
         if unsafe { SetCommTimeouts(self.handle, &mut timeouts) } == 0 {
