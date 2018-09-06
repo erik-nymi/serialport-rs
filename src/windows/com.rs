@@ -221,7 +221,12 @@ impl io::Read for COMPort {
                     )
                 };
                 if res == FALSE {
-                    return Err(io::Error::last_os_error());
+                    let err = io::Error::last_os_error();
+                    if err.raw_os_error().unwrap() as u32 == ERROR_TIMEOUT {
+                        return Ok(len as usize);
+                    } else {
+                        return Err(err);
+                    }
                 }
                 if len != 0 {
                     Ok(len as usize)
