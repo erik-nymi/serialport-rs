@@ -36,6 +36,9 @@ extern crate IOKit_sys;
 #[cfg(target_os = "macos")]
 extern crate mach;
 
+#[macro_use]
+extern crate log;
+
 #[cfg(windows)]
 extern crate regex;
 #[cfg(windows)]

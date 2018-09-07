@@ -209,6 +209,7 @@ impl io::Read for COMPort {
             match err {
                 0 | 997 => {}
                 _ => {
+                    warn!("serrec - Received error from , {}", err);
                     return Err(io::Error::last_os_error());
                 }
             }
@@ -220,12 +221,23 @@ impl io::Read for COMPort {
         if res == FALSE {
             let err = io::Error::last_os_error();
             if err.raw_os_error().unwrap() as u32 == ERROR_TIMEOUT {
+                warn!("serrec - Received timeout, returning {} bytes", len);
                 return Ok(len as usize);
             } else {
+                warn!("serrec - Received error in timeout branch, {}", err);
                 return Err(err);
             }
         }
         if len != 0 {
+            if len != (buf.len() as DWORD) {
+                let err = unsafe { GetLastError() };
+                warn!(
+                    "serrec - lengths did not match: {}, {}, last error: {}",
+                    len,
+                    buf.len(),
+                    err
+                );
+            }
             Ok(len as usize)
         } else {
             Err(io::Error::new(
