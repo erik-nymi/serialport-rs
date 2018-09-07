@@ -196,7 +196,7 @@ impl FromRawHandle for COMPort {
 
 impl io::Read for COMPort {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        match unsafe {
+        if let FALSE = unsafe {
             ReadFile(
                 self.handle,
                 buf.as_mut_ptr() as LPVOID,
@@ -205,38 +205,33 @@ impl io::Read for COMPort {
                 &mut self.overlaps.read_overlap,
             )
         } {
-            _ => {
-                let err = unsafe { GetLastError() };
-                match err {
-                    0 | 997 => {}
-                    _ => return Err(io::Error::last_os_error()),
-                }
-                let mut len: DWORD = 0;
-                let res = unsafe {
-                    GetOverlappedResult(
-                        self.handle,
-                        &mut self.overlaps.read_overlap,
-                        &mut len,
-                        TRUE,
-                    )
-                };
-                if res == FALSE {
-                    let err = io::Error::last_os_error();
-                    if err.raw_os_error().unwrap() as u32 == ERROR_TIMEOUT {
-                        return Ok(len as usize);
-                    } else {
-                        return Err(err);
-                    }
-                }
-                if len != 0 {
-                    Ok(len as usize)
-                } else {
-                    Err(io::Error::new(
-                        io::ErrorKind::TimedOut,
-                        "Operation timed out",
-                    ))
+            let err = unsafe { GetLastError() };
+            match err {
+                0 | 997 => {}
+                _ => {
+                    return Err(io::Error::last_os_error());
                 }
             }
+        }
+        let mut len: DWORD = 0;
+        let res = unsafe {
+            GetOverlappedResult(self.handle, &mut self.overlaps.read_overlap, &mut len, TRUE)
+        };
+        if res == FALSE {
+            let err = io::Error::last_os_error();
+            if err.raw_os_error().unwrap() as u32 == ERROR_TIMEOUT {
+                return Ok(len as usize);
+            } else {
+                return Err(err);
+            }
+        }
+        if len != 0 {
+            Ok(len as usize)
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "Operation timed out",
+            ))
         }
     }
 }
