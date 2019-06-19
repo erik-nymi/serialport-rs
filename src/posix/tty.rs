@@ -72,7 +72,7 @@ impl TTYPort {
     pub fn open(path: &Path, settings: &SerialPortSettings) -> ::Result<TTYPort> {
         use nix::fcntl::FcntlArg::F_SETFL;
         use nix::fcntl::OFlag;
-        use nix::libc::{self, cfmakeraw, tcflush, tcgetattr, tcsetattr};
+        use nix::libc::{cfmakeraw, tcflush, tcgetattr, tcsetattr};
 
         let fd = nix::fcntl::open(
             path,
