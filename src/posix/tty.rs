@@ -832,6 +832,7 @@ fn udev_property_as_string(d: &libudev::Device, key: &str) -> Option<String> {
 /// If the property value doesn't exist or doesn't contain valid hex digits, then an error
 /// will be returned.
 #[cfg(all(target_os = "linux", not(target_env = "musl")))]
+#[allow(dead_code)]
 fn udev_hex_property_as_u16(d: &libudev::Device, key: &str) -> ::Result<u16> {
     if let Some(hex_str) = d.property_value(key).and_then(OsStr::to_str) {
         if let Ok(num) = u16::from_str_radix(hex_str, 16) {
@@ -844,7 +845,34 @@ fn udev_hex_property_as_u16(d: &libudev::Device, key: &str) -> ::Result<u16> {
     }
 }
 
-#[cfg(all(target_os = "linux", not(target_env = "musl")))]
+// FIXME: this hack is only to simulate Bluegiga device on Thin Client NOT to be used in production! 
+#[cfg(all(feature = "thin_client", target_os = "linux", not(target_env = "musl")))]
+fn port_type(d: &libudev::Device) -> ::Result<::SerialPortType> {
+    println!("device properties:");
+    for property in d.properties() {
+        println!("{:?} = {:?}", property.name(), property.value());
+    }
+    println!("device attributes:");
+    for attribute in d.attributes() {
+        println!("{:?} = {:?}", attribute.name(), attribute.value());
+    }
+    match d.property_value("DEVNAME").and_then(OsStr::to_str) {
+        Some("/dev/ttyACM0") => {
+            let serial_number = udev_property_as_string(d, "ID_SERIAL_SHORT");
+            Ok(SerialPortType::UsbPort(UsbPortInfo {
+                vid: 9304,
+                pid: 0001,
+                serial_number,
+                manufacturer: Some("Bluegiga".to_string()),
+                product: Some("Low_Energy_Dongle".to_string()),
+            }))
+        }
+        Some("pci") => Ok(::SerialPortType::PciPort),
+        _ => Ok(::SerialPortType::Unknown),
+    }
+}
+
+#[cfg(all(not(feature = "thin_client"), target_os = "linux", not(target_env = "musl")))]
 fn port_type(d: &libudev::Device) -> ::Result<::SerialPortType> {
     match d.property_value("ID_BUS").and_then(OsStr::to_str) {
         Some("usb") => {
