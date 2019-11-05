@@ -845,7 +845,8 @@ fn udev_hex_property_as_u16(d: &libudev::Device, key: &str) -> ::Result<u16> {
     }
 }
 
-// FIXME: this hack is only to simulate Bluegiga device on Thin Client NOT to be used in production! 
+// FIXME: this workaround should be used only as long as the Thin Client udev library does not expose 
+// properties to detect the Bluegiga dongle. 
 #[cfg(all(feature = "thin_client", target_os = "linux", not(target_env = "musl")))]
 fn port_type(d: &libudev::Device) -> ::Result<::SerialPortType> {
     println!("device properties:");
